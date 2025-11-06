@@ -1,0 +1,69 @@
+// === ESP32 LASER TRANSMITTER (Active-Low) ===
+// Clock Laser → GPIO 26
+// Data Laser  → GPIO 25
+// Indicator LED → GPIO 2
+
+#define LASER_CLOCK 26
+#define LASER_DATA  25
+#define LED_PIN     2
+
+int bitDelay = 1000;   // ms per bit — slow & reliable
+int setupDelay = 200;  // delay before clock pulse
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(LASER_CLOCK, OUTPUT);
+  pinMode(LASER_DATA, OUTPUT);
+  pinMode(LED_PIN, OUTPUT);
+
+  digitalWrite(LASER_CLOCK, HIGH); // lasers OFF (active low)
+  digitalWrite(LASER_DATA, HIGH);
+  digitalWrite(LED_PIN, LOW);
+
+  Serial.println("Laser Transmitter Ready (Active-Low)...");
+  Serial.println("Type a message to send via laser:");
+}
+
+void loop() {
+  if (Serial.available()) {
+    String msg = Serial.readStringUntil('\n');
+    msg.trim();
+    Serial.print("Transmitting: ");
+    Serial.println(msg);
+
+    for (int c = 0; c < msg.length(); c++) {
+      byte ch = msg[c];
+      Serial.print("Sending '");
+      Serial.print((char)ch);
+      Serial.print("' -> ");
+
+      // send bits MSB first
+      for (int i = 7; i >= 0; i--) {
+        int bitVal = (ch >> i) & 1;
+        Serial.print(bitVal);
+
+        // Data ON (LOW) if bit=1
+        if (bitVal == 1)
+          digitalWrite(LASER_DATA, LOW);
+        else
+          digitalWrite(LASER_DATA, HIGH);
+
+        delay(setupDelay);
+
+        // Clock pulse
+        digitalWrite(LASER_CLOCK, LOW);
+        digitalWrite(LED_PIN, HIGH);
+        delay(bitDelay);
+        digitalWrite(LASER_CLOCK, HIGH);
+        digitalWrite(LED_PIN, LOW);
+
+        // Data OFF
+        digitalWrite(LASER_DATA, HIGH);
+        delay(200);
+      }
+      Serial.println();
+      delay(800); // gap between characters
+    }
+    Serial.println("Message done.\n");
+  }
+}
